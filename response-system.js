@@ -1,6 +1,16 @@
 const bucket = new WeakMap();
 let activeEffect = null;
 
+//入口
+function effect(fn) {
+  activeEffect = fn;
+  fn();
+}
+/**
+ * 将对象设置为响应对象
+ * @param {*} obj
+ * @returns
+ */
 function ref(obj) {
   return new Proxy(obj, {
     get(target, key) {
@@ -12,11 +22,6 @@ function ref(obj) {
       trigger(target, key);
     },
   });
-}
-
-function effect(fn) {
-  activeEffect = fn;
-  fn();
 }
 /**
  * 收集依赖
@@ -59,16 +64,21 @@ function trigger(target, key) {
 /**
  * demo
  */
-const data = ref({
+const hero = ref({
   name: "超人",
+  isSuperMan: true,
   abilitys: ["射线", "飞行", "力大无穷"],
 });
 
 effect(() => {
-  const name = data.name;
-  console.log("这个人的名字叫:", name);
+  const name = hero.isSuperMan ? hero.name : "不是超人";
+  console.log("这个人是超人吗?", name);
 });
 
 setTimeout(() => {
-  data.name = "蝙蝠侠";
+  hero.isSuperMan = false;
 }, 1000);
+
+setTimeout(() => {
+  hero.name = "蝙蝠侠";
+}, 2000);
