@@ -1,10 +1,21 @@
+/**
+ * effect嵌套引发的 修改响应数据触发的副作用函数不对应的问题
+ */
 const bucket = new WeakMap();
 let activeEffect = null;
-
+const effectStack = [];
 //入口
 function effect(fn) {
-  activeEffect = fn;
-  fn();
+  const effectFn = () => {
+    cleanup(effectFn);
+    activeEffect = effectFn;
+    effectStack.push(activeEffect); //新增
+    fn();
+    effectStack.pop(); //新增
+    activeEffect = effectStack[effectStack.length - 1]; //新增
+  };
+  effectFn.deps = [];
+  effectFn();
 }
 /**
  * 将对象设置为响应对象
@@ -41,6 +52,8 @@ function track(target, key) {
     depsMap.set(key, (deps = new Set()));
   }
   deps.add(activeEffect);
+  //新增
+  activeEffect.deps.push(deps);
 }
 
 /**
@@ -58,27 +71,40 @@ function trigger(target, key) {
   if (!deps) {
     return;
   }
-  deps.forEach((dep) => dep());
+  const depsNew = new Set(deps);
+  depsNew.forEach((dep) => dep());
+}
+
+function cleanup(effectFn) {
+  const depsArr = effectFn.deps;
+  depsArr.forEach((deps) => {
+    deps.delete(effectFn);
+  });
+  effectFn.deps.length = [];
 }
 
 /**
  * demo
+ * 外层执行 内层执行  外层执行 内层执行
+ * 原因是
+ * 在外层回调执行到，obj.foo，触发了track，但此时的activeEffect的已经指向了内层回调。
  */
-const hero = ref({
-  name: "超人",
-  isSuperMan: true,
-  abilitys: ["射线", "飞行", "力大无穷"],
-});
+
+const data = { foo: true, bar: true };
+const obj = ref(data);
+let temp1, temp2;
 
 effect(() => {
-  const name = hero.isSuperMan ? hero.name : "不是超人";
-  console.log("这个人是超人吗?", name, hero.name);
+  console.log("外层执行");
+
+  effect(() => {
+    console.log("内层执行");
+    temp2 = obj.bar;
+  });
+
+  temp1 = obj.foo;
 });
 
 setTimeout(() => {
-  hero.isSuperMan = false;
+  obj.foo = false;
 }, 1000);
-
-setTimeout(() => {
-  hero.name = "蝙蝠侠";
-}, 2000);

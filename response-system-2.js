@@ -3,8 +3,13 @@ let activeEffect = null;
 
 //入口
 function effect(fn) {
-  activeEffect = fn;
-  fn();
+  const effectFn = () => {
+    cleanup(effectFn);
+    activeEffect = effectFn;
+    fn();
+  };
+  effectFn.deps = [];
+  effectFn();
 }
 /**
  * 将对象设置为响应对象
@@ -41,6 +46,8 @@ function track(target, key) {
     depsMap.set(key, (deps = new Set()));
   }
   deps.add(activeEffect);
+  //新增
+  activeEffect.deps.push(deps);
 }
 
 /**
@@ -58,9 +65,17 @@ function trigger(target, key) {
   if (!deps) {
     return;
   }
-  deps.forEach((dep) => dep());
+  const depsNew = new Set(deps);
+  depsNew.forEach((dep) => dep());
 }
 
+function cleanup(effectFn) {
+  const depsArr = effectFn.deps;
+  depsArr.forEach((deps) => {
+    deps.delete(effectFn);
+  });
+  effectFn.deps.length = [];
+}
 /**
  * demo
  */
@@ -72,7 +87,7 @@ const hero = ref({
 
 effect(() => {
   const name = hero.isSuperMan ? hero.name : "不是超人";
-  console.log("这个人是超人吗?", name, hero.name);
+  console.log("这个人是超人吗?", name);
 });
 
 setTimeout(() => {

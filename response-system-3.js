@@ -3,8 +3,13 @@ let activeEffect = null;
 
 //入口
 function effect(fn) {
-  activeEffect = fn;
-  fn();
+  const effectFn = () => {
+    cleanup(effectFn);
+    activeEffect = effectFn;
+    fn();
+  };
+  effectFn.deps = [];
+  effectFn();
 }
 /**
  * 将对象设置为响应对象
@@ -41,6 +46,8 @@ function track(target, key) {
     depsMap.set(key, (deps = new Set()));
   }
   deps.add(activeEffect);
+  //新增
+  activeEffect.deps.push(deps);
 }
 
 /**
@@ -58,27 +65,43 @@ function trigger(target, key) {
   if (!deps) {
     return;
   }
-  deps.forEach((dep) => dep());
+  const depsNew = new Set(deps);
+  depsNew.forEach((dep) => dep());
+}
+
+function cleanup(effectFn) {
+  const depsArr = effectFn.deps;
+  depsArr.forEach((deps) => {
+    deps.delete(effectFn);
+  });
+  effectFn.deps.length = [];
 }
 
 /**
  * demo
+ * 外层执行 内层执行  内层执行
+ * 原因是：前两个都是effect初始化时候运行输出的。
+ * 原因是 activeEffect 这个全局变量，在内层effect函数执行的时候，被覆盖了，它指向的
+ * 副作用函数是内层的回调。
  */
-const hero = ref({
-  name: "超人",
-  isSuperMan: true,
-  abilitys: ["射线", "飞行", "力大无穷"],
-});
+
+const data = { foo: true, bar: true };
+
+const obj = ref(data);
+
+let temp1, temp2;
 
 effect(() => {
-  const name = hero.isSuperMan ? hero.name : "不是超人";
-  console.log("这个人是超人吗?", name, hero.name);
+  console.log("外层执行");
+
+  effect(() => {
+    console.log("内层执行");
+    temp2 = obj.bar;
+  });
+
+  temp1 = obj.foo;
 });
 
 setTimeout(() => {
-  hero.isSuperMan = false;
+  obj.foo = false;
 }, 1000);
-
-setTimeout(() => {
-  hero.name = "蝙蝠侠";
-}, 2000);

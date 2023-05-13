@@ -1,10 +1,21 @@
+/**
+ * 避免回调函数里对响应数据既读取又赋值引发的死循环问题
+ */
 const bucket = new WeakMap();
 let activeEffect = null;
-
+const effectStack = [];
 //入口
 function effect(fn) {
-  activeEffect = fn;
-  fn();
+  const effectFn = () => {
+    cleanup(effectFn);
+    activeEffect = effectFn;
+    effectStack.push(activeEffect); //新增
+    fn();
+    effectStack.pop(); //新增
+    activeEffect = effectStack[effectStack.length - 1]; //新增
+  };
+  effectFn.deps = [];
+  effectFn();
 }
 /**
  * 将对象设置为响应对象
@@ -41,6 +52,8 @@ function track(target, key) {
     depsMap.set(key, (deps = new Set()));
   }
   deps.add(activeEffect);
+  //新增
+  activeEffect.deps.push(deps);
 }
 
 /**
@@ -58,27 +71,32 @@ function trigger(target, key) {
   if (!deps) {
     return;
   }
-  deps.forEach((dep) => dep());
+  const depsNew = new Set(deps);
+  depsNew.forEach((dep) => {
+    if (dep !== activeEffect) {
+      //新增
+      dep();
+    }
+  });
+}
+
+function cleanup(effectFn) {
+  const depsArr = effectFn.deps;
+  depsArr.forEach((deps) => {
+    deps.delete(effectFn);
+  });
+  effectFn.deps.length = [];
 }
 
 /**
  * demo
  */
-const hero = ref({
-  name: "超人",
-  isSuperMan: true,
-  abilitys: ["射线", "飞行", "力大无穷"],
-});
+
+const data = { foo: true, bar: true };
+const obj = ref(data);
+let temp1, temp2;
 
 effect(() => {
-  const name = hero.isSuperMan ? hero.name : "不是超人";
-  console.log("这个人是超人吗?", name, hero.name);
+  console.log("外层执行");
+  obj.foo++;
 });
-
-setTimeout(() => {
-  hero.isSuperMan = false;
-}, 1000);
-
-setTimeout(() => {
-  hero.name = "蝙蝠侠";
-}, 2000);
