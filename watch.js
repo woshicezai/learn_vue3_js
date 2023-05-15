@@ -113,11 +113,18 @@ function watch(respondValue, cb) {
   }
 
   let oldValue, newValue;
+  let cleanup;
+  function onInvalidate(fn) {
+    cleanup = fn;
+  }
   const effectFn = effect(() => getter(), {
     lazyLoad: true, //新增
     scheduler(fn) {
       newValue = fn();
-      cb(newValue, oldValue); //新增
+      if (cleanup) {
+        cleanup();
+      }
+      cb(newValue, oldValue, onInvalidate); //新增
       oldValue = newValue; //新增
     },
   });
@@ -151,11 +158,18 @@ const obj = ref(data);
 
 watch(
   () => obj.foo,
-  (newValue, oldValue) => {
+  (newValue, oldValue, onInvalidate) => {
+    let isExpire = false;
+    onInvalidate(() => {
+      console.log("go there", newValue, oldValue);
+      isExpire = true;
+    });
+
     console.log("watch:" + newValue, oldValue);
   }
 );
 
+obj.foo++;
 obj.foo++;
 
 console.log(bucket.get(data));
