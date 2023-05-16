@@ -103,7 +103,12 @@ function cleanup(effectFn) {
  * demo
  */
 
-const data = { foo: 1 };
+const data = {
+  foo: 1,
+  get bar() {
+    return this.foo;
+  },
+};
 const obj = ref(data);
 let temp1, temp2;
 
