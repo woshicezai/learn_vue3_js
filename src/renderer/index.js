@@ -24,7 +24,7 @@ document.getElementById("btn").addEventListener("click", function () {
  * @param {*} param0
  * @returns
  */
-function createRenderer({ createElement, insert, setElementText }) {
+function createRenderer({ createElement, insert, setElementText, patchProps }) {
   /**
    * 打补丁
    * @param {*} oldNode
@@ -43,6 +43,7 @@ function createRenderer({ createElement, insert, setElementText }) {
   //挂载
   function mountElement(vnode, container) {
     const el = createElement(vnode.type);
+    //处理children
     if (typeof vnode.children === "string") {
       setElementText(el, vnode.children);
     } else if (Array.isArray(vnode.children)) {
@@ -50,6 +51,13 @@ function createRenderer({ createElement, insert, setElementText }) {
         patch(null, child, el);
       });
     }
+    //处理props
+    if (vnode.props) {
+      for (const key in vnode.props) {
+        patchProps(el, key, null, vnode.props[key]);
+      }
+    }
+
     insert(el, container);
   }
   //渲染
@@ -81,10 +89,34 @@ const vnode = {
   ],
 };
 
+//属性设置是否使用dom值设置
+function shouldSetAsProps(el, key) {
+  if (key === "form" && el.tagName === "INPUT") return false;
+  return key in el;
+}
+
 const { render } = createRenderer({
   createElement: (tag) => document.createElement(tag),
   insert: (el, parent, anchor = null) => parent.insertBefore(el, anchor),
   setElementText: (el, text) => (el.textContent = text),
+  patchProps: (el, key, preValue, nextValue) => {
+    //优先对class做特殊处理
+    if (key === "class") {
+      el.className = nextValue || "";
+    } else if (shouldSetAsProps(el, key)) {
+      //优先使用dom属性进行设置
+      const type = typeof el[key]; //判断在dom上，这个属性的类型是什么
+      // const value = vnode.props[key];
+      if (type === "boolean" && nextValue === "") {
+        el[key] = true;
+      } else {
+        el[key] = nextValue;
+      }
+    } else {
+      //如果该属性在dom上没有对应的，则设置html属性值
+      el.setAttribute(key, nextValue);
+    }
+  },
 });
 
 render(vnode, document.getElementById("app"));
