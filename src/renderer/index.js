@@ -99,20 +99,6 @@ function createRenderer({ createElement, insert, setElementText, patchProps }) {
   };
 }
 
-const vnode = {
-  type: "div",
-  children: [
-    {
-      type: "h1",
-      children: "hello",
-    },
-    {
-      type: "h2",
-      children: "hi",
-    },
-  ],
-};
-
 //属性设置是否使用dom值设置
 function shouldSetAsProps(el, key) {
   if (key === "form" && el.tagName === "INPUT") return false;
@@ -132,6 +118,7 @@ const { render } = createRenderer({
       if (nextValue) {
         if (!invoker) {
           invoker = el._vei[name] = (e) => {
+            if (e.timeStamp < invoker.attached) return;
             //一个元素可以多个事件，一个事件可以多个回调绑定
             if (Array.isArray(invoker.value)) {
               invoker.value.forEach((inv) => inv(e));
@@ -140,6 +127,7 @@ const { render } = createRenderer({
             }
           };
           el.addEventListener(name, invoker);
+          invoker.attached = performance.now();
         }
         invoker.value = nextValue;
       } else if (invoker) {
@@ -147,7 +135,7 @@ const { render } = createRenderer({
       }
     }
     //优先对class做特殊处理
-    if (key === "class") {
+    else if (key === "class") {
       el.className = nextValue || "";
     } else if (shouldSetAsProps(el, key)) {
       //优先使用dom属性进行设置
@@ -165,4 +153,31 @@ const { render } = createRenderer({
   },
 });
 
-render(vnode, document.getElementById("app"));
+const bol = ref(false);
+
+effect(() => {
+  const vnode = {
+    type: "div",
+    props: !bol.value
+      ? {
+          onclick: (e) => {
+            console.log("我是div", e.timeStamp);
+          },
+        }
+      : {},
+    children: [
+      { type: "h1", children: "HELLO" },
+      {
+        type: "h2",
+        children: "hi",
+        props: {
+          onclick: (e) => {
+            bol.value = true;
+            console.log("点击我啦", e.timeStamp);
+          },
+        },
+      },
+    ],
+  };
+  render(vnode, document.getElementById("app"));
+});
