@@ -45,6 +45,10 @@ function createRenderer({ createElement, insert, setElementText }) {
     const el = createElement(vnode.type);
     if (typeof vnode.children === "string") {
       setElementText(el, vnode.children);
+    } else if (Array.isArray(vnode.children)) {
+      vnode.children.forEach((child) => {
+        patch(null, child, el);
+      });
     }
     insert(el, container);
   }
