@@ -68,8 +68,17 @@ function createRenderer({ createElement, insert, setElementText }) {
 }
 
 const vnode = {
-  type: "h1",
-  children: "hello",
+  type: "div",
+  children: [
+    {
+      type: "h1",
+      children: "hello",
+    },
+    {
+      type: "h2",
+      children: "hi",
+    },
+  ],
 };
 
 const { render } = createRenderer({
