@@ -110,8 +110,8 @@ const { render } = createRenderer({
   insert: (el, parent, anchor = null) => parent.insertBefore(el, anchor),
   setElementText: (el, text) => (el.textContent = text),
   patchProps: (el, key, preValue, nextValue) => {
+    //以on开头的属性，认为是事件
     if (/^on/.test(key)) {
-      //以on开头的属性，认为是事件
       const name = key.slice(2).toLowerCase();
       const invokers = el._vei || (el._vei = {});
       let invoker = invokers[name];
